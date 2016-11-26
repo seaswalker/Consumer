@@ -1,0 +1,11 @@
+dontinline,*.*_all_jmhStub
+dontinline,*.*_avgt_jmhStub
+dontinline,*.*_sample_jmhStub
+dontinline,*.*_ss_jmhStub
+dontinline,*.*_thrpt_jmhStub
+inline,sampletime/CASConsumerBenchmark.finish
+inline,sampletime/CASConsumerBenchmark.init
+inline,sampletime/CASConsumerBenchmark.locked
+inline,sampletime/LockedConsumerBenchmark.finish
+inline,sampletime/LockedConsumerBenchmark.init
+inline,sampletime/LockedConsumerBenchmark.locked

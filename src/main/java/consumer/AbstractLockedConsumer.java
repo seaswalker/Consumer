@@ -30,6 +30,7 @@ public abstract class AbstractLockedConsumer<T> extends AbstractQueuedConsumer<T
 
     @Override
     public final boolean submit(T task) {
+        checkSubmit();
         boolean result = false;
         lock.lock();
         try {
@@ -45,6 +46,7 @@ public abstract class AbstractLockedConsumer<T> extends AbstractQueuedConsumer<T
 
     @Override
     public final void submitSync(T task) {
+        checkSubmit();
         lock.lock();
         try {
             while (!this.jobQueue.offer(task))
@@ -58,25 +60,36 @@ public abstract class AbstractLockedConsumer<T> extends AbstractQueuedConsumer<T
     }
 
     @Override
-    public final void run() {
-        while (true) {
-            T task = null;
-            lock.lock();
-            try {
-                while ((task = jobQueue.poll()) == null)
-                    empty.await();
-                full.signalAll();
-            } catch (InterruptedException e) {
+    protected final T getTask() {
+        T task = null;
+        lock.lock();
+        try {
+            while ((task = jobQueue.poll()) == null)
+                empty.await();
+            full.signalAll();
+        } catch (InterruptedException e) {
+            if (getState() != State.TERMINATED)
                 logger.error("InterruptedException occurred when waiting on Condition 'empty'.", e);
-            } finally {
-                lock.unlock();
-            }
-            try {
-                consume(task);
-            } catch (RuntimeException e) {
-                handleUncheckedException(e);
-            }
+        } finally {
+            lock.unlock();
         }
+        return task;
+    }
+
+    @Override
+    protected final void doTerminate() {
+        thread.interrupt();
+    }
+
+    @Override
+    protected final void doTerminateNow() {
+        doTerminate();
+    }
+
+    @Override
+    protected final T getLeftTask() {
+        T task = jobQueue.poll();
+        return task;
     }
 
 }

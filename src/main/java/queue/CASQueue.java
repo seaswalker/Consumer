@@ -1,5 +1,6 @@
 package queue;
 
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 /**
@@ -9,9 +10,12 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
  */
 public class CASQueue<T> implements SQueue<T> {
 
-    private final T[] array;
+    private T[] array;
+    private long[] pad1 = new long[8];
     private volatile long readIndex = 0;
+    private long[] pad2 = new long[8];
     private volatile long writeIndex = 0;
+    private long[] pad3 = new long[8];
     private final int capacity;
     private final int indexMask;
     private final AtomicLongFieldUpdater<CASQueue> readIndexUpdater = AtomicLongFieldUpdater.newUpdater(CASQueue.class, "readIndex");
@@ -21,7 +25,7 @@ public class CASQueue<T> implements SQueue<T> {
         if (capacity < 1) {
             throw new IllegalArgumentException("The param capacity must be bigger than 0.");
         }
-        if (capacity % 2 > 0) {
+        if (!isPowerOfTwo(capacity)) {
             throw new IllegalArgumentException("The param capacity must be power of 2.");
         }
         this.array = (T[]) new Object[capacity];
@@ -29,31 +33,39 @@ public class CASQueue<T> implements SQueue<T> {
         this.indexMask = capacity - 1;
     }
 
+    /**
+     * 判断给定的数字是否是2的整次幂.
+     */
+    private boolean isPowerOfTwo(int n) {
+        return ((n & (n - 1)) == 0);
+    }
+
     @Override
     public boolean offer(T element) {
-        if ((writeIndex - readIndex + 1) == capacity) {
-            return false;
-        }
         long index = 0;
         do {
             index = writeIndex;
+            if ((index - readIndex) == capacity) {
+                return false;
+            }
         } while (!writeIndexUpdater.compareAndSet(this, index, index + 1));
         array[(int) (index & indexMask)] = element;
-        return false;
+        return true;
     }
 
     @Override
     public T poll() {
-        if (readIndex >= writeIndex) {
-            return null;
-        }
         long index = 0;
         do {
             index = readIndex;
+            if (index >= writeIndex) {
+                return null;
+            }
         } while (!readIndexUpdater.compareAndSet(this, index, index + 1));
         int i = (int) (index & indexMask);
         T result = array[i];
-        array[i] = null;
+        //不能置为null，否则会因为指令重排导致返回null
+        //array[i] = null;
         return result;
     }
 
@@ -64,8 +76,17 @@ public class CASQueue<T> implements SQueue<T> {
 
     @Override
     public boolean isEmpty() {
-        return (readIndex == writeIndex);
+        return (readIndex >= writeIndex);
     }
 
+    @Override
+    public String toString() {
+        return "CASQueue{" +
+                "array=" + Arrays.toString(array) +
+                ", readIndex=" + readIndex +
+                ", writeIndex=" + writeIndex +
+                ", capacity=" + capacity +
+                '}';
+    }
 
 }

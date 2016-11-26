@@ -21,11 +21,13 @@ public abstract class AbstractCASConsumer<T> extends AbstractQueuedConsumer<T> {
 
     @Override
     public final boolean submit(T task) {
+        checkSubmit();
         return jobQueue.offer(task);
     }
 
     @Override
     public final void submitSync(T task) {
+        checkSubmit();
         boolean result = false;
         do {
             result = jobQueue.offer(task);
@@ -33,18 +35,9 @@ public abstract class AbstractCASConsumer<T> extends AbstractQueuedConsumer<T> {
     }
 
     @Override
-    public final void run() {
-        T task = null;
-        while (true) {
-            task = jobQueue.poll();
-            if (task != null) {
-                try {
-                    consume(task);
-                } catch (RuntimeException e) {
-                    handleUncheckedException(e);
-                }
-            }
-        }
+    protected final T getTask() {
+        T task = jobQueue.poll();
+        return task;
     }
 
 }

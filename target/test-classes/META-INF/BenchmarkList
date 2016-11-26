@@ -1,0 +1,3 @@
+JMH S 34 sampletime.LockedConsumerBenchmark S 59 sampletime.generated.LockedConsumerBenchmark_locked_jmhTest S 6 locked S 10 SampleTime I 1 2 A 1 1 1 E I 2 10 E E I 1 1 E I 5 10000 E E E E E E E E E E 
+JMH S 31 sampletime.CASConsumerBenchmark S 56 sampletime.generated.CASConsumerBenchmark_locked_jmhTest S 6 locked S 10 SampleTime I 1 2 A 1 1 1 E I 2 10 E E I 1 1 E I 5 10000 E E E E E E E E E E 
+JMH S 20 sampletime.Bootstrap S 45 sampletime.generated.Bootstrap_locked_jmhTest S 6 locked S 14 SingleShotTime E A 1 1 1 E I 1 5 E E I 1 1 E I 5 10000 E E E E E E E E E E 
