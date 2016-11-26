@@ -1,7 +1,7 @@
 package lifecycle;
 
 /**
- * 生命周期
+ * 生命周期.
  *
  * @author skywalker
  */
