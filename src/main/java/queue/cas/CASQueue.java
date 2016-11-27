@@ -1,7 +1,11 @@
-package queue;
+package queue.cas;
+
+import queue.SQueue;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+
+import static util.UnsafeAccess.UNSAFE;
 
 /**
  * {@link SQueue}实现，基于CAS无锁操作.
@@ -10,16 +14,20 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
  */
 public class CASQueue<T> implements SQueue<T> {
 
-    private T[] array;
-    private long[] pad1 = new long[8];
+    private final T[] array;
+    private final long[] pad1 = new long[8];
     private volatile long readIndex = 0;
-    private long[] pad2 = new long[8];
+    private final long[] pad2 = new long[8];
     private volatile long writeIndex = 0;
-    private long[] pad3 = new long[8];
+    private final long[] pad3 = new long[8];
     private final int capacity;
-    private final int indexMask;
-    private final AtomicLongFieldUpdater<CASQueue> readIndexUpdater = AtomicLongFieldUpdater.newUpdater(CASQueue.class, "readIndex");
-    private final AtomicLongFieldUpdater<CASQueue> writeIndexUpdater = AtomicLongFieldUpdater.newUpdater(CASQueue.class, "writeIndex");
+    private final long mask;
+    private final int arrayBaseOffset;
+    private final int arrayPointerOffset;
+    private final AtomicLongFieldUpdater<CASQueue> readIndexUpdater =
+            AtomicLongFieldUpdater.newUpdater(CASQueue.class, "readIndex");
+    private final AtomicLongFieldUpdater<CASQueue> writeIndexUpdater =
+            AtomicLongFieldUpdater.newUpdater(CASQueue.class, "writeIndex");
 
     public CASQueue(int capacity) {
         if (capacity < 1) {
@@ -30,7 +38,16 @@ public class CASQueue<T> implements SQueue<T> {
         }
         this.array = (T[]) new Object[capacity];
         this.capacity = capacity;
-        this.indexMask = capacity - 1;
+        this.mask = capacity - 1;
+        this.arrayBaseOffset = UNSAFE.arrayBaseOffset(Object[].class);
+        int scale = UNSAFE.arrayIndexScale(Object[].class);
+        if (scale == 4) {
+            this.arrayPointerOffset = 2;
+        } else if (scale == 8) {
+            this.arrayPointerOffset = 3;
+        } else {
+            throw new IllegalStateException("Unkown pointer size: " + scale);
+        }
     }
 
     /**
@@ -49,7 +66,8 @@ public class CASQueue<T> implements SQueue<T> {
                 return false;
             }
         } while (!writeIndexUpdater.compareAndSet(this, index, index + 1));
-        array[(int) (index & indexMask)] = element;
+        long offset = calOffset(index);
+        UNSAFE.putOrderedObject(array, offset, element);
         return true;
     }
 
@@ -62,11 +80,22 @@ public class CASQueue<T> implements SQueue<T> {
                 return null;
             }
         } while (!readIndexUpdater.compareAndSet(this, index, index + 1));
-        int i = (int) (index & indexMask);
-        T result = array[i];
-        //不能置为null，否则会因为指令重排导致返回null
-        //array[i] = null;
+        long offset = calOffset(index);
+        T result = (T) UNSAFE.getObjectVolatile(array, offset);
+        if (result == null) {
+            //生产者尚未完成element保存
+            do {
+                result = (T) UNSAFE.getObjectVolatile(array, offset);
+            } while (result == null);
+        }
         return result;
+    }
+
+    /**
+     * 计算给定的索引在数组中的偏移.
+     */
+    private long calOffset(long index) {
+        return (arrayBaseOffset + ((index & mask) << arrayPointerOffset));
     }
 
     @Override

@@ -1,6 +1,6 @@
 package consumer;
 
-import queue.ArrayQueue;
+import queue.locked.ArrayQueue;
 import queue.SQueue;
 
 import java.util.concurrent.locks.Condition;

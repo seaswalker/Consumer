@@ -11,7 +11,7 @@ import java.util.concurrent.ExecutionException;
  *
  * @author skywalker
  */
-@BenchmarkMode(Mode.SampleTime)
+@BenchmarkMode(Mode.SingleShotTime)
 @State(Scope.Benchmark)
 public class LockedConsumerBenchmark {
 
@@ -28,9 +28,9 @@ public class LockedConsumerBenchmark {
      * 测试{@link sampletime.consumer.SimpleLockConsumer}.
      */
     @Benchmark
-    @Warmup(iterations = 10)
-    @Measurement(iterations = 1, batchSize = 10000)
-    @Threads(2)
+    @Warmup(iterations = 3)
+    @Measurement(iterations = 1, batchSize = 100000)
+    @Threads(4)
     public void locked() {
         consumer.submitSync(seed);
     }

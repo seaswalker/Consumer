@@ -1,4 +1,6 @@
-package queue;
+package queue.locked;
+
+import queue.SQueue;
 
 /**
  * 用数组实现的队列，非线程安全.

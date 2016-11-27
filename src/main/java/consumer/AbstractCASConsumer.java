@@ -1,7 +1,7 @@
 package consumer;
 
-import queue.CASQueue;
 import queue.SQueue;
+import queue.cas.CASQueue;
 
 /**
  * {@link SubmitableConsumer}骨架实现，基于CAS操作的消费者实现.
