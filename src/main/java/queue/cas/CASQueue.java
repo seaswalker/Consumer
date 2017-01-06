@@ -8,11 +8,11 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import static util.UnsafeAccess.UNSAFE;
 
 /**
- * {@link SQueue}实现，基于CAS无锁操作.
+ * {@link SQueue}实现，基于CAS无锁操作.用于测试目的.
  *
  * @author skywalker
  */
-public class CASQueue<T> implements SQueue<T> {
+class CASQueue<T> implements SQueue<T> {
 
     private final T[] array;
     private final long[] pad1 = new long[8];

@@ -5,6 +5,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
+import lifecycle.StateCheckDelegate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import queue.SQueue;
@@ -25,9 +26,13 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
     private volatile boolean consumeLeft = false;
     private long consumed = 0L;
     private CompletableFuture<Long> future;
+    private final StateCheckDelegate delegate;
+    private final int id;
 
-    public AbstractQueuedConsumer(int queueSize) {
+    public AbstractQueuedConsumer(int queueSize, int id) {
         this.queueSize = queueSize;
+        this.id = id;
+        this.delegate = StateCheckDelegate.getInstance();
     }
 
     /**
@@ -39,29 +44,18 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
 
     @Override
     public final boolean start() {
-        checkStart();
+        delegate.checkStart(this);
         this.jobQueue = newQueue();
         String name = getThreadName();
-        Thread t = new Thread(this, name);
-        t.start();
-        this.thread = t;
         if (doStart()) {
             this.state = State.RUNNING;
+            Thread t = new Thread(this, name);
+            t.start();
+            this.thread = t;
             logger.info("{} start successfully.", name);
             return true;
         }
         return false;
-    }
-
-    /**
-     * 检查当前是否可以启动.
-     *
-     * @throws IllegalStateException 如果不能
-     */
-    private void checkStart() {
-        if (state != State.INIT) {
-            throw new IllegalStateException("You can't start " + getThreadName() + " when state is " + state.name());
-        }
     }
 
     /**
@@ -76,7 +70,7 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
      * 得到线程名称，默认使用类名.
      */
     protected String getThreadName() {
-        return this.getClass().getSimpleName();
+        return (this.getClass().getSimpleName() + "-" + id);
     }
 
     /**
@@ -100,7 +94,7 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
 
     @Override
     public final Future<Long> terminate() {
-        checkTerminated();
+        delegate.checkTerminated(this);
         CompletableFuture<Long> future = new CompletableFuture<>();
         this.future = future;
         this.consumeLeft = true;
@@ -117,7 +111,7 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
 
     @Override
     public final Future<Long> terminateNow() {
-        checkTerminated();
+        delegate.checkTerminated(this);
         CompletableFuture<Long> future = new CompletableFuture<>();
         this.future = future;
         this.state = State.TERMINATED;
@@ -131,24 +125,14 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
     protected void doTerminateNow() {
     }
 
-    /**
-     * 检查当前消费者是否已经被终结.
-     *
-     * @throws IllegalStateException 如果已经被终结
-     */
-    private void checkTerminated() {
-        if (state == State.TERMINATED) {
-            throw new IllegalStateException(getThreadName() + " has been terminated.");
-        }
-    }
-
     @Override
     public final void run() {
-        T task = null;
+        T task;
         while (shouldConsume()) {
             task = getTask();
-            if (task != null)
+            if (task != null) {
                 doConsume(task);
+            }
         }
         if (consumeLeft) {
             while ((task = getLeftTask()) != null)
@@ -190,17 +174,6 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
      */
     private boolean shouldConsume() {
         return (this.state == State.RUNNING);
-    }
-
-    /**
-     * 检查当前是否可以进行任务提交.
-     *
-     * @throws IllegalStateException 如果不能
-     */
-    protected final void checkSubmit() {
-        if (state != State.RUNNING) {
-            throw new IllegalStateException("You can't submit task when state is " + state.name());
-        }
     }
 
     @Override

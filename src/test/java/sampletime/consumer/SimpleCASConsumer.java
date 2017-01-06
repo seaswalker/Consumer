@@ -1,9 +1,9 @@
 package sampletime.consumer;
 
-import consumer.AbstractCASConsumer;
+import consumer.cas.AbstractCASConsumer;
 
 /**
- * 简单的{@link consumer.AbstractCASConsumer}实现.
+ * 简单的{@link AbstractCASConsumer}实现.
  *
  * @author skywalker
  */

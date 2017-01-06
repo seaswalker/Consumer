@@ -1,9 +1,9 @@
 package sampletime.consumer;
 
-import consumer.AbstractLockedConsumer;
+import consumer.lock.AbstractLockedConsumer;
 
 /**
- * 简单的{@link consumer.AbstractLockedConsumer}.
+ * 简单的{@link AbstractLockedConsumer}.
  *
  * @author skywalker
  */

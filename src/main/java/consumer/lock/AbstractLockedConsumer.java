@@ -1,5 +1,8 @@
-package consumer;
+package consumer.lock;
 
+import consumer.AbstractQueuedConsumer;
+import consumer.Consumer;
+import consumer.SubmitableConsumer;
 import queue.locked.ArrayQueue;
 import queue.SQueue;
 
@@ -19,8 +22,8 @@ public abstract class AbstractLockedConsumer<T> extends AbstractQueuedConsumer<T
     private final Condition empty = lock.newCondition();
     private final Condition full = lock.newCondition();
 
-    public AbstractLockedConsumer(int queueSize) {
-        super(queueSize);
+    public AbstractLockedConsumer(int queueSize, int id) {
+        super(queueSize, id);
     }
 
     @Override
@@ -30,7 +33,6 @@ public abstract class AbstractLockedConsumer<T> extends AbstractQueuedConsumer<T
 
     @Override
     public final boolean submit(T task) {
-        checkSubmit();
         boolean result = false;
         lock.lock();
         try {
@@ -46,7 +48,6 @@ public abstract class AbstractLockedConsumer<T> extends AbstractQueuedConsumer<T
 
     @Override
     public final void submitSync(T task) {
-        checkSubmit();
         lock.lock();
         try {
             while (!this.jobQueue.offer(task))
