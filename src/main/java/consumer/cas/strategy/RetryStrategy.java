@@ -21,4 +21,9 @@ public interface RetryStrategy<T> {
      */
     boolean submit(SQueue<T> queue, T task);
 
+    /**
+     * 放弃重试，比如对于{@link consumer.cas.AbstractCASConsumer.BlockStrategy},那么就应该从阻塞中醒来.
+     */
+    void release();
+
 }

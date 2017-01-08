@@ -100,7 +100,6 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
         this.consumeLeft = true;
         this.state = State.TERMINATED;
         doTerminate();
-        future.complete(consumed);
         return future;
     }
 
@@ -117,7 +116,6 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
         this.future = future;
         this.state = State.TERMINATED;
         doTerminateNow();
-        future.complete(consumed);
         return future;
     }
 
@@ -163,12 +161,12 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
     protected abstract T getTask();
 
     /**
-     * 得到队列中剩余的任务，当terminate()方法被调用时执行，默认直接委托给getTask()方法.
+     * 得到队列中剩余的任务，当terminate()方法被调用时执行.
      *
      * @return <T>
      */
-    protected T getLeftTask() {
-        return getTask();
+    private T getLeftTask() {
+        return jobQueue.poll();
     }
 
     /**

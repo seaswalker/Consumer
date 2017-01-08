@@ -65,12 +65,14 @@ public abstract class AbstractLockedConsumer<T> extends AbstractQueuedConsumer<T
         T task = null;
         lock.lock();
         try {
-            while ((task = jobQueue.poll()) == null)
+            if ((task = jobQueue.poll()) == null) {
                 empty.await();
-            full.signalAll();
+            }
+            if (task != null) {
+                full.signalAll();
+            }
         } catch (InterruptedException e) {
-            if (getState() != State.TERMINATED)
-                logger.error("InterruptedException occurred when waiting on Condition 'empty'.", e);
+            logger.error("InterruptedException occurred when waiting on Condition 'empty'.", e);
         } finally {
             lock.unlock();
         }
@@ -79,18 +81,17 @@ public abstract class AbstractLockedConsumer<T> extends AbstractQueuedConsumer<T
 
     @Override
     protected final void doTerminate() {
-        thread.interrupt();
+        lock.lock();
+        try {
+            empty.signal();
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
     protected final void doTerminateNow() {
         doTerminate();
-    }
-
-    @Override
-    protected final T getLeftTask() {
-        T task = jobQueue.poll();
-        return task;
     }
 
 }

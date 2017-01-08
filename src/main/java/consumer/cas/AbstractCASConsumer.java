@@ -25,12 +25,14 @@ public abstract class AbstractCASConsumer<T> extends AbstractQueuedConsumer<T> {
     private final RetryStrategy<T> retryStrategy;
 
     public AbstractCASConsumer(int queueSize, int id) {
-        this(queueSize, id, newBlockStrategy());
+        this(queueSize, id, null);
     }
 
     public AbstractCASConsumer(int queueSize, int id, RetryStrategy retryStrategy) {
         super(queueSize, id);
-        Objects.requireNonNull(retryStrategy);
+        if (retryStrategy == null) {
+            retryStrategy = newBlockStrategy();
+        }
         this.retryStrategy = retryStrategy;
     }
 
@@ -46,7 +48,7 @@ public abstract class AbstractCASConsumer<T> extends AbstractQueuedConsumer<T> {
 
     @Override
     public final void submitSync(T task) {
-        while (!submit(task));
+        while (!submit(task)) ;
     }
 
     @Override
@@ -54,25 +56,35 @@ public abstract class AbstractCASConsumer<T> extends AbstractQueuedConsumer<T> {
         return retryStrategy.retry(jobQueue);
     }
 
+    @Override
+    protected void doTerminate() {
+        retryStrategy.release();
+    }
+
+    @Override
+    protected void doTerminateNow() {
+        retryStrategy.release();
+    }
+
     /**
      * 创建一个阻塞的{@link RetryStrategy}.
      */
-    public static BlockStrategy newBlockStrategy() {
-        return new BlockStrategy();
+    public BlockStrategy newBlockStrategy() {
+        return new BlockStrategy(this);
     }
 
     /**
      * 创建一个不断重试的{@link RetryStrategy}.
      */
-    public static LoopStrategy newLoopStrategy() {
+    public LoopStrategy newLoopStrategy() {
         return new LoopStrategy();
     }
 
     /**
      * 创建一个自旋实现的{@link RetryStrategy}.
      */
-    public static SpinStrategy newSpinStrategy(int spin) {
-        return new SpinStrategy(spin);
+    public SpinStrategy newSpinStrategy(int spin) {
+        return new SpinStrategy(this, spin);
     }
 
     /**
@@ -83,7 +95,13 @@ public abstract class AbstractCASConsumer<T> extends AbstractQueuedConsumer<T> {
         private final Lock lock = new ReentrantLock();
         private final Condition empty = lock.newCondition();
         private volatile boolean waitting = false;
-        private static final Logger logger = LoggerFactory.getLogger(BlockStrategy.class);
+        private final Logger logger = LoggerFactory.getLogger(this.getClass());
+
+        protected final AbstractCASConsumer consumer;
+
+        private BlockStrategy(AbstractCASConsumer consumer) {
+            this.consumer = consumer;
+        }
 
         @Override
         public T retry(SQueue<T> queue) {
@@ -91,7 +109,7 @@ public abstract class AbstractCASConsumer<T> extends AbstractQueuedConsumer<T> {
             try {
                 lock.lock();
                 try {
-                    while ((task = queue.poll()) == null) {
+                    if ((task = queue.poll()) == null) {
                         waitting = true;
                         empty.await();
                     }
@@ -117,6 +135,19 @@ public abstract class AbstractCASConsumer<T> extends AbstractQueuedConsumer<T> {
             }
             return result;
         }
+
+        @Override
+        public void release() {
+            if (waitting) {
+                lock.lock();
+                try {
+                    empty.signal();
+                } finally {
+                    lock.unlock();
+                }
+            }
+        }
+
     }
 
     /**
@@ -133,6 +164,12 @@ public abstract class AbstractCASConsumer<T> extends AbstractQueuedConsumer<T> {
         public boolean submit(SQueue<T> queue, T task) {
             return queue.offer(task);
         }
+
+        @Override
+        public void release() {
+            //do nothing
+        }
+
     }
 
     /**
@@ -144,7 +181,8 @@ public abstract class AbstractCASConsumer<T> extends AbstractQueuedConsumer<T> {
 
         private final int spin;
 
-        private SpinStrategy(int spin) {
+        private SpinStrategy(AbstractCASConsumer consumer, int spin) {
+            super(consumer);
             this.spin = spin;
         }
 
@@ -153,6 +191,9 @@ public abstract class AbstractCASConsumer<T> extends AbstractQueuedConsumer<T> {
             int times = 0;
             T task = null;
             while (times < spin) {
+                if (consumer.getState() != State.RUNNING) {
+                    return task;
+                }
                 task = queue.poll();
                 if (task != null) {
                     break;
