@@ -1,5 +1,7 @@
 package manager;
 
+import lifecycle.LifeCycle;
+
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -8,16 +10,17 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * @author skywalker
  */
-public abstract class AbstractLockedManager<T> extends AbstractManager<T> {
+public abstract class AbstractLockedManager<T extends LifeCycle> extends AbstractManager<T> {
 	
 	private final Lock lock = new ReentrantLock();
+    private int index = 0;
 	
 	@Override
 	public T next() {
 		T result = null;
 		lock.lock();
 		try {
-			result = slavers[index];
+			result = slavers.get(index);
 			++index;
 			if (index >= slaveCount) {
 				index = 0;

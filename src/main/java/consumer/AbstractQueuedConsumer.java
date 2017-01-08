@@ -27,7 +27,7 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
     private long consumed = 0L;
     private CompletableFuture<Long> future;
     private final StateCheckDelegate delegate;
-    private final int id;
+    protected final int id;
 
     public AbstractQueuedConsumer(int queueSize, int id) {
         this.queueSize = queueSize;
@@ -100,6 +100,7 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
         this.consumeLeft = true;
         this.state = State.TERMINATED;
         doTerminate();
+        future.complete(consumed);
         return future;
     }
 
@@ -116,6 +117,7 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
         this.future = future;
         this.state = State.TERMINATED;
         doTerminateNow();
+        future.complete(consumed);
         return future;
     }
 

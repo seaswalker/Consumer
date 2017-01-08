@@ -7,6 +7,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
+import java.util.function.Function;
 
 /**
  * {@link Manager}骨架实现，非线程安全.
@@ -46,25 +49,42 @@ public abstract class AbstractManager<T extends LifeCycle> implements Manager<T>
         return result;
     }
 
-    /**
-     * 对结果进行累加.
-     * <br>
-     * 如果覆盖了getAccumulator方法，那么必须覆盖此方法.
-     *
-     * @param accumulator 累加器
-     * @param value       加数
-     * @return 新的累加器
-     */
-    protected <V> V accumulate(V accumulator, V value) {
-        throw new UnsupportedOperationException();
+    @Override
+    public Future<Long> terminate() {
+        return terminateHelper(LifeCycle::terminate);
+    }
+
+    @Override
+    public Future<Long> terminateNow() {
+        return terminateHelper(LifeCycle::terminateNow);
     }
 
     /**
-     * 获得结果累加器，如果返回null,表示对结果不感兴趣，这会导致不进行结果收集.
-     * 默认返回null.
+     * termintae()和termintaeNow()辅助方法.
+     *
+     * @param function {@link Function}
+     * @return {@link Future} 如果对结果不感兴趣，那么返回null
      */
-    protected <V> V getAccumulator() {
-        return null;
+    private Future<Long> terminateHelper(Function<T, Future<Long>> function) {
+        delegate.checkTerminated(this);
+        final Future<Long>[] futures = new Future[slaveCount];
+        for (int i = 0; i < slaveCount; i++) {
+            futures[i] = function.apply(slavers.get(i));
+        }
+        final CompletableFuture<Long> future = new CompletableFuture<>();
+        new Thread(() -> {
+            long consumed = 0L;
+            try {
+                for (int i = 0; i < slaveCount; i++) {
+                    consumed += futures[i].get();
+                }
+                future.complete(consumed);
+            } catch (Exception e) {
+                logger.error("Result collect failed.", e);
+                future.complete(-1L);
+            }
+        }).start();
+        return future;
     }
 
     @Override
