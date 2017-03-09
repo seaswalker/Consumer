@@ -24,12 +24,12 @@ public abstract class AbstractCASConsumer<T> extends AbstractQueuedConsumer<T> {
 
     private final RetryStrategy<T> retryStrategy;
 
-    public AbstractCASConsumer(int queueSize, int id) {
-        this(queueSize, id, null);
+    public AbstractCASConsumer(int queueSize) {
+        this(queueSize, null);
     }
 
-    public AbstractCASConsumer(int queueSize, int id, RetryStrategy retryStrategy) {
-        super(queueSize, id);
+    public AbstractCASConsumer(int queueSize, RetryStrategy retryStrategy) {
+        super(queueSize);
         if (retryStrategy == null) {
             retryStrategy = newBlockStrategy();
         }

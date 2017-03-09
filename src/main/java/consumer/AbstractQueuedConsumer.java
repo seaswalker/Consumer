@@ -27,11 +27,9 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
     private long consumed = 0L;
     private CompletableFuture<Long> future;
     private final StateCheckDelegate delegate;
-    protected final int id;
 
-    public AbstractQueuedConsumer(int queueSize, int id) {
+    public AbstractQueuedConsumer(int queueSize) {
         this.queueSize = queueSize;
-        this.id = id;
         this.delegate = StateCheckDelegate.getInstance();
     }
 
@@ -46,10 +44,11 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
     public final boolean start() {
         delegate.checkStart(this);
         this.jobQueue = newQueue();
-        String name = getThreadName();
         if (doStart()) {
             this.state = State.RUNNING;
-            Thread t = new Thread(this, name);
+            Thread t = new Thread(this);
+            String name = getThreadName(t);
+            t.setName(name);
             t.start();
             this.thread = t;
             logger.info("{} start successfully.", name);
@@ -67,10 +66,12 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
     }
 
     /**
-     * 得到线程名称，默认使用类名.
+     * 得到线程名称，默认使用类名-线程ID的格式.
+     *
+     * @param t {@linkplain Thread}, 线程
      */
-    protected String getThreadName() {
-        return (this.getClass().getSimpleName() + "-" + id);
+    protected String getThreadName(Thread t) {
+        return (this.getClass().getSimpleName() + "-" + t.getId());
     }
 
     /**
@@ -135,8 +136,9 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
             }
         }
         if (consumeLeft) {
-            while ((task = getLeftTask()) != null)
+            while ((task = getLeftTask()) != null) {
                 doConsume(task);
+            }
         }
         this.future.complete(consumed);
     }

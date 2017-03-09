@@ -22,8 +22,8 @@ public abstract class AbstractLockedConsumer<T> extends AbstractQueuedConsumer<T
     private final Condition empty = lock.newCondition();
     private final Condition full = lock.newCondition();
 
-    public AbstractLockedConsumer(int queueSize, int id) {
-        super(queueSize, id);
+    public AbstractLockedConsumer(int queueSize) {
+        super(queueSize);
     }
 
     @Override

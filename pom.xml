@@ -5,6 +5,18 @@
     <groupId>skywalker</groupId>
     <artifactId>Consumer</artifactId>
     <version>1.0-SNAPSHOT</version>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
     <packaging>jar</packaging>
 
     <name>Consumer</name>
@@ -15,31 +27,26 @@
     </properties>
 
     <dependencies>
-        <!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-api -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>1.7.21</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-jdk14 -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-jdk14</artifactId>
             <version>1.7.21</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.openjdk.jmh/jmh-core -->
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-core</artifactId>
             <version>1.16</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.openjdk.jmh/jmh-generator-annprocess -->
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-generator-annprocess</artifactId>
             <version>1.16</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.jctools/jctools-core -->
         <dependency>
             <groupId>org.jctools</groupId>
             <artifactId>jctools-core</artifactId>
