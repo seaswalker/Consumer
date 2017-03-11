@@ -2,7 +2,6 @@ package consumer.lock;
 
 import consumer.AbstractQueuedConsumer;
 import consumer.Consumer;
-import consumer.SubmitableConsumer;
 import queue.locked.ArrayQueue;
 import queue.SQueue;
 
@@ -11,8 +10,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * {@link SubmitableConsumer}骨架实现，提供加锁(线程安全)的实现.
- * 子类只需实现{@link Consumer}.consume()方法即可.
+ * {@link AbstractQueuedConsumer}骨架实现，提供加锁(线程安全)的实现.子类只需实现{@link Consumer}.consume()方法即可.
  *
  * @author skywalker
  */

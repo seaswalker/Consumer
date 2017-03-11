@@ -1,20 +1,18 @@
 package consumer.cas;
 
 import consumer.AbstractQueuedConsumer;
-import consumer.SubmitableConsumer;
 import consumer.cas.strategy.RetryStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import queue.SQueue;
 import queue.cas.SpscBasedQueue;
 
-import java.util.Objects;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * {@link SubmitableConsumer}骨架实现，基于CAS操作的消费者实现.
+ * {@link AbstractQueuedConsumer}骨架实现，基于CAS操作的消费者实现.
  * <br>
  * 默认采用阻塞的等待策略.
  *
@@ -105,19 +103,17 @@ public abstract class AbstractCASConsumer<T> extends AbstractQueuedConsumer<T> {
 
         @Override
         public T retry(SQueue<T> queue) {
-            T task = null;
-            try {
+            T task;
+            if ((task = queue.poll()) == null) {
+                waitting = true;
                 lock.lock();
                 try {
-                    if ((task = queue.poll()) == null) {
-                        waitting = true;
-                        empty.await();
-                    }
+                    empty.await();
+                } catch (InterruptedException e) {
+                    logger.error("InterruptedException occurred when wait on Condition BlockStrategy.empty.", e);
                 } finally {
                     lock.unlock();
                 }
-            } catch (InterruptedException e) {
-                logger.error("InterruptedException occurred when wait on Condition BlockStrategy.empty.", e);
             }
             return task;
         }

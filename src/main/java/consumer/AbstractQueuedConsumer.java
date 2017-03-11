@@ -2,8 +2,7 @@ package consumer;
 
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 
 import lifecycle.StateCheckDelegate;
 import org.slf4j.Logger;
@@ -11,22 +10,34 @@ import org.slf4j.LoggerFactory;
 import queue.SQueue;
 
 /**
- * {@link SubmitableConsumer}骨架实现，提供基本的生命周期以及{@link RuntimeException}处理.
+ * {@link Consumer}骨架实现，提供基本的生命周期以及{@link RuntimeException}处理.
  *
  * @author skywalker
  */
-public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>, Runnable {
+public abstract class AbstractQueuedConsumer<T> implements Consumer<T>, Submiable<T>, Runnable {
 
     protected SQueue<T> jobQueue;
-    protected final Logger logger = LoggerFactory.getLogger(this.getClass());
-    protected Thread thread;
+    protected ExecutorService executor;
     protected UncaughtExceptionHandler handler;
+
+    protected final Logger logger = LoggerFactory.getLogger(this.getClass());
     protected final int queueSize;
+
     private volatile State state = State.INIT;
     private volatile boolean consumeLeft = false;
+
     private long consumed = 0L;
     private CompletableFuture<Long> future;
+
     private final StateCheckDelegate delegate;
+    /**
+     * 默认的线程工厂，将线程名设置为{@link #getThreadName(Thread)}.
+     */
+    private final ThreadFactory defaultThreadFactory = r -> {
+        Thread t = new Thread(r);
+        t.setName(getThreadName(t));
+        return t;
+    };
 
     public AbstractQueuedConsumer(int queueSize) {
         this.queueSize = queueSize;
@@ -44,25 +55,24 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
     public final boolean start() {
         delegate.checkStart(this);
         this.jobQueue = newQueue();
-        if (doStart()) {
-            this.state = State.RUNNING;
-            Thread t = new Thread(this);
-            String name = getThreadName(t);
-            t.setName(name);
-            t.start();
-            this.thread = t;
-            logger.info("{} start successfully.", name);
-            return true;
-        }
-        return false;
+        this.state = State.RUNNING;
+        this.executor = startExecutor(defaultThreadFactory);
+        return true;
     }
 
     /**
-     * 允许子类执行自己的启动逻辑. 默认直接返回true.
-     * 此方法将在线程启动之后被调用.
+     * 启动消费线程，子类可覆盖此方法以实现自己的启动逻辑，比如对于实现了{@link MultiThreadsConsumer}的
+     * 消费者来说，可覆盖此方法以启动多个消费线程.
+     * <p>注意: 子类在覆盖此方法时，务必保证返回的{@link ExecutorService}使用参数给定的线程工厂.</p>
+     * <p>默认使用{@link Executors#newSingleThreadExecutor()}方法来启动一个消费线程.</p>
+     *
+     * @param threadFactory 使用的线程工厂
+     * @return {@linkplain ExecutorService}
      */
-    protected boolean doStart() {
-        return true;
+    protected ExecutorService startExecutor(ThreadFactory threadFactory) {
+        ExecutorService executor = Executors.newSingleThreadExecutor(threadFactory);
+        executor.execute(this);
+        return executor;
     }
 
     /**
@@ -81,7 +91,7 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
      */
     protected void handleUncheckedException(RuntimeException e) {
         if (handler != null) {
-            handler.uncaughtException(thread, e);
+            handler.uncaughtException(Thread.currentThread(), e);
         } else {
             logger.error("RuntimeException occurred when consume() was invoked.", e);
         }
@@ -100,6 +110,7 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
         this.future = future;
         this.consumeLeft = true;
         this.state = State.TERMINATED;
+        this.executor.shutdown();
         doTerminate();
         return future;
     }
@@ -116,6 +127,7 @@ public abstract class AbstractQueuedConsumer<T> implements SubmitableConsumer<T>
         CompletableFuture<Long> future = new CompletableFuture<>();
         this.future = future;
         this.state = State.TERMINATED;
+        this.executor.shutdownNow();
         doTerminateNow();
         return future;
     }

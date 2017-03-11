@@ -1,6 +1,5 @@
 package logic;
 
-import consumer.cas.AbstractCASConsumer;
 import consumer.lock.AbstractLockedConsumer;
 
 /**
@@ -10,13 +9,13 @@ import consumer.lock.AbstractLockedConsumer;
  */
 public class SimpleConsumer extends AbstractLockedConsumer<String> {
 
-    public SimpleConsumer(int queueSize, int id) {
-        super(queueSize, id);
+    public SimpleConsumer(int queueSize) {
+        super(queueSize);
     }
 
     @Override
     public void consume(String task) {
-        System.out.println("Consumer " + id + ": ");
+        System.out.println("Consumer: ");
     }
 
 }

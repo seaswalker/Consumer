@@ -25,7 +25,7 @@ public class LogicTest {
         Manager<SimpleConsumer> manager = new AbstractLockedManager<SimpleConsumer>() {
             @Override
             public SimpleConsumer newSlaver(int id) {
-                return new SimpleConsumer(10, id);
+                return new SimpleConsumer(10);
             }
 
             @Override
