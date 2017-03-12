@@ -45,22 +45,20 @@ public abstract class AbstractLockedConsumer<T> extends AbstractQueuedConsumer<T
     }
 
     @Override
-    public final void submitSync(T task) {
+    public final void submitSync(T task) throws InterruptedException {
         lock.lock();
         try {
             while (!this.jobQueue.offer(task))
                 full.await();
             empty.signal();
-        } catch (InterruptedException e) {
-            logger.error("InterruptedException occurred when submitSync() was invoked.", e);
         } finally {
             lock.unlock();
         }
     }
 
     @Override
-    protected final T getTask() {
-        T task = null;
+    protected final T getTask() throws InterruptedException {
+        T task;
         lock.lock();
         try {
             if ((task = jobQueue.poll()) == null) {
@@ -69,8 +67,6 @@ public abstract class AbstractLockedConsumer<T> extends AbstractQueuedConsumer<T
             if (task != null) {
                 full.signalAll();
             }
-        } catch (InterruptedException e) {
-            logger.error("InterruptedException occurred when waiting on Condition 'empty'.", e);
         } finally {
             lock.unlock();
         }

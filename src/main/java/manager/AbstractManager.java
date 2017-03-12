@@ -2,8 +2,6 @@ package manager;
 
 import lifecycle.LifeCycle;
 import lifecycle.StateCheckDelegate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,7 +20,6 @@ public abstract class AbstractManager<T extends LifeCycle> implements Manager<T>
     protected int slaveCount;
     protected final StateCheckDelegate delegate;
     private State state = State.INIT;
-    protected final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     protected AbstractManager() {
         this.delegate = StateCheckDelegate.getInstance();
@@ -50,12 +47,12 @@ public abstract class AbstractManager<T extends LifeCycle> implements Manager<T>
     }
 
     @Override
-    public Future<Long> terminate() {
+    public Future<Void> terminate() {
         return terminateHelper(LifeCycle::terminate);
     }
 
     @Override
-    public Future<Long> terminateNow() {
+    public Future<Void> terminateNow() {
         return terminateHelper(LifeCycle::terminateNow);
     }
 
@@ -65,23 +62,21 @@ public abstract class AbstractManager<T extends LifeCycle> implements Manager<T>
      * @param function {@link Function}
      * @return {@link Future} 如果对结果不感兴趣，那么返回null
      */
-    private Future<Long> terminateHelper(Function<T, Future<Long>> function) {
+    private Future<Void> terminateHelper(Function<T, Future<Void>> function) {
         delegate.checkTerminated(this);
-        final Future<Long>[] futures = new Future[slaveCount];
+        final Future<Void>[] futures = new Future[slaveCount];
         for (int i = 0; i < slaveCount; i++) {
             futures[i] = function.apply(slavers.get(i));
         }
-        final CompletableFuture<Long> future = new CompletableFuture<>();
+        final CompletableFuture<Void> future = new CompletableFuture<>();
         new Thread(() -> {
-            long consumed = 0L;
             try {
                 for (int i = 0; i < slaveCount; i++) {
-                    consumed += futures[i].get();
+                    futures[i].get();
                 }
-                future.complete(consumed);
+                future.complete(null);
             } catch (Exception e) {
-                logger.error("Result collect failed.", e);
-                future.complete(-1L);
+                //ignore...
             }
         }).start();
         return future;

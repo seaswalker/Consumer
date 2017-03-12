@@ -21,14 +21,14 @@ public interface LifeCycle {
      *
      * @return {@link Future}
      */
-    <T> Future<T> terminate();
+    Future<Void> terminate();
 
     /**
      * 立即关闭.
      *
      * @return {@link Future}
      */
-    <T> Future<T> terminateNow();
+    Future<Void> terminateNow();
 
     /**
      * 得到组件当前的状态.

@@ -1,14 +1,18 @@
 package logic;
 
+import consumer.Consumer;
+import consumer.cas.strategy.BlockStrategy;
 import manager.AbstractLockedManager;
 import manager.Manager;
 import org.junit.Assert;
 import org.junit.Test;
+import pool.DefaultConsumerPool;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 测试逻辑的正确性.
@@ -55,8 +59,52 @@ public class LogicTest {
         service.execute(new Producter(0));
         service.execute(new Producter(1));
         service.shutdown();
-        Future<Long> future = manager.terminate();
+        Future<Void> future = manager.terminate();
+        future.get();
         System.out.println("Total consumed: " + future.get());
+    }
+
+    /**
+     * 测试消费者池.
+     */
+    @Test
+    public void pool() throws ExecutionException, InterruptedException {
+        AtomicLong counter = new AtomicLong();
+        DefaultConsumerPool<String> pool = new DefaultConsumerPool<>(2, 2, 10, 20, message -> {
+            System.out.println(message);
+            counter.incrementAndGet();
+        });
+        pool.setRetryStrategy(new BlockStrategy<>());
+        Assert.assertTrue(pool.start());
+        class Producter implements Runnable {
+            final int id;
+            final Consumer<String> consumer;
+            int index = 0;
+
+            Producter(int id, Consumer<String> consumer) {
+                this.id = id;
+                this.consumer = consumer;
+            }
+
+            @Override
+            public void run() {
+                for (int i = 0; i < 10; i++) {
+                    if (!consumer.submit("Producter " + id + ":" + index++)) {
+                        System.out.println("丢了");
+                    }
+                }
+            }
+        }
+        ExecutorService service = Executors.newFixedThreadPool(2);
+        service.execute(new Producter(0, pool.acquire()));
+        service.execute(new Producter(1, pool.acquire()));
+        service.execute(new Producter(2, pool.acquire()));
+        service.execute(new Producter(3, pool.acquire()));
+        Thread.sleep(2000);
+        service.shutdown();
+        Future<Void> future = pool.terminate();
+        future.get();
+        System.out.println("Total consumed: " + counter);
     }
 
 }

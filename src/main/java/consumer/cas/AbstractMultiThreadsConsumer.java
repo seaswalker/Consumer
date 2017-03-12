@@ -40,4 +40,6 @@ public abstract class AbstractMultiThreadsConsumer<T> extends AbstractCASConsume
         return service;
     }
 
+
+
 }

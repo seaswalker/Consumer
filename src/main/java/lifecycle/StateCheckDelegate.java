@@ -43,4 +43,17 @@ public class StateCheckDelegate {
         }
     }
 
+    /**
+     * 检查组件当前是否正在运行.
+     *
+     * @param lifeCycle {@link LifeCycle}
+     * @throws IllegalStateException 如果没有正在运行
+     */
+    public void checkRunning(LifeCycle lifeCycle) {
+        String className = lifeCycle.getClass().getSimpleName();
+        if (lifeCycle.getState() != LifeCycle.State.RUNNING) {
+            throw new IllegalStateException(className + " should be running.");
+        }
+    }
+
 }

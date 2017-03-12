@@ -43,7 +43,7 @@ public interface ConsumerPool<T> extends LifeCycle {
     MultiThreadsConsumer<T> acquireMPMC();
 
     /**
-     * 释放{@link Consumer}.
+     * 释放{@link Consumer}.当一个生产者不再使用一个消费者时，务必确保此方法被调用.
      *
      * @param consumer {@linkplain Consumer}
      */

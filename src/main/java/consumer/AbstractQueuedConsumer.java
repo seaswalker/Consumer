@@ -5,8 +5,6 @@ import java.util.Objects;
 import java.util.concurrent.*;
 
 import lifecycle.StateCheckDelegate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import queue.SQueue;
 
 /**
@@ -14,20 +12,18 @@ import queue.SQueue;
  *
  * @author skywalker
  */
-public abstract class AbstractQueuedConsumer<T> implements Consumer<T>, Submiable<T>, Runnable {
+public abstract class AbstractQueuedConsumer<T> implements Consumer<T>, Runnable {
 
     protected SQueue<T> jobQueue;
     protected ExecutorService executor;
     protected UncaughtExceptionHandler handler;
 
-    protected final Logger logger = LoggerFactory.getLogger(this.getClass());
     protected final int queueSize;
 
     private volatile State state = State.INIT;
     private volatile boolean consumeLeft = false;
 
-    private long consumed = 0L;
-    private CompletableFuture<Long> future;
+    private CompletableFuture<Void> future;
 
     private final StateCheckDelegate delegate;
     /**
@@ -92,8 +88,6 @@ public abstract class AbstractQueuedConsumer<T> implements Consumer<T>, Submiabl
     protected void handleUncheckedException(RuntimeException e) {
         if (handler != null) {
             handler.uncaughtException(Thread.currentThread(), e);
-        } else {
-            logger.error("RuntimeException occurred when consume() was invoked.", e);
         }
     }
 
@@ -104,9 +98,9 @@ public abstract class AbstractQueuedConsumer<T> implements Consumer<T>, Submiabl
     }
 
     @Override
-    public final Future<Long> terminate() {
+    public final Future<Void> terminate() {
         delegate.checkTerminated(this);
-        CompletableFuture<Long> future = new CompletableFuture<>();
+        CompletableFuture<Void> future = new CompletableFuture<>();
         this.future = future;
         this.consumeLeft = true;
         this.state = State.TERMINATED;
@@ -122,9 +116,9 @@ public abstract class AbstractQueuedConsumer<T> implements Consumer<T>, Submiabl
     }
 
     @Override
-    public final Future<Long> terminateNow() {
+    public final Future<Void> terminateNow() {
         delegate.checkTerminated(this);
-        CompletableFuture<Long> future = new CompletableFuture<>();
+        CompletableFuture<Void> future = new CompletableFuture<>();
         this.future = future;
         this.state = State.TERMINATED;
         this.executor.shutdownNow();
@@ -141,18 +135,24 @@ public abstract class AbstractQueuedConsumer<T> implements Consumer<T>, Submiabl
     @Override
     public final void run() {
         T task;
-        while (shouldConsume()) {
-            task = getTask();
-            if (task != null) {
-                doConsume(task);
+        try {
+            while (shouldConsume()) {
+                task = getTask();
+                if (task != null) {
+                    doConsume(task);
+                }
             }
-        }
-        if (consumeLeft) {
-            while ((task = getLeftTask()) != null) {
-                doConsume(task);
+            if (consumeLeft) {
+                while ((task = getLeftTask()) != null) {
+                    doConsume(task);
+                }
             }
+        } catch (InterruptedException e) {
+            //exit...
         }
-        this.future.complete(consumed);
+        if (future != null && !future.isDone()) {
+            future.complete(null);
+        }
     }
 
     /**
@@ -161,7 +161,6 @@ public abstract class AbstractQueuedConsumer<T> implements Consumer<T>, Submiabl
     private void doConsume(T task) {
         try {
             consume(task);
-            ++consumed;
         } catch (RuntimeException e) {
             handleUncheckedException(e);
         }
@@ -171,8 +170,9 @@ public abstract class AbstractQueuedConsumer<T> implements Consumer<T>, Submiabl
      * 从工作队列中得到任务，由子类实现，此方法将会被run()调用.
      *
      * @return <T>
+     * @throws InterruptedException 如果获取任务时被中断
      */
-    protected abstract T getTask();
+    protected abstract T getTask() throws InterruptedException;
 
     /**
      * 得到队列中剩余的任务，当terminate()方法被调用时执行.
@@ -188,11 +188,6 @@ public abstract class AbstractQueuedConsumer<T> implements Consumer<T>, Submiabl
      */
     private boolean shouldConsume() {
         return (this.state == State.RUNNING);
-    }
-
-    @Override
-    public long getConsumedCount() {
-        return consumed;
     }
 
     @Override

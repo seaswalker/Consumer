@@ -9,7 +9,7 @@ import lifecycle.LifeCycle;
  *
  * @author skywalker
  */
-public interface Consumer<T> extends LifeCycle {
+public interface Consumer<T> extends LifeCycle, Submitable<T> {
 
     /**
      * 任务消费.
@@ -22,10 +22,5 @@ public interface Consumer<T> extends LifeCycle {
      * @param handler {@link UncaughtExceptionHandler}
      */
     void setUncaughtExceptionHandler(UncaughtExceptionHandler handler);
-
-    /**
-     * 统计成功消费的任务数.
-     */
-    long getConsumedCount();
 
 }
