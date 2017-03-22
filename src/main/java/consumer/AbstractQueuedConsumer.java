@@ -4,8 +4,10 @@ import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.Objects;
 import java.util.concurrent.*;
 
-import lifecycle.StateCheckDelegate;
-import queue.SQueue;
+import consumer.lifecycle.StateCheckDelegate;
+import org.slf4j.Logger;
+import consumer.queue.SQueue;
+import consumer.util.Util;
 
 /**
  * {@link Consumer}骨架实现，提供基本的生命周期以及{@link RuntimeException}处理.
@@ -26,6 +28,7 @@ public abstract class AbstractQueuedConsumer<T> implements Consumer<T>, Runnable
     private CompletableFuture<Void> future;
 
     private final StateCheckDelegate delegate;
+    private final Logger log = Util.getLogger(this.getClass());
     /**
      * 默认的线程工厂，将线程名设置为{@link #getThreadName(Thread)}.
      */
@@ -82,12 +85,17 @@ public abstract class AbstractQueuedConsumer<T> implements Consumer<T>, Runnable
 
     /**
      * 处理{@link RuntimeException}, 子类可以定义自己的处理策略。
+     * <p>默认分为两种情况:</p>
+     * <p>1. 如果设置了{@link #handler}，那么调用之.</p>
+     * <p>2. 打印错误日志(如果classpath中有日志组件).</p>
      *
      * @param e {@linkplain RuntimeException}
      */
     protected void handleUncheckedException(RuntimeException e) {
         if (handler != null) {
             handler.uncaughtException(Thread.currentThread(), e);
+        } else if (log != null) {
+            log.error("A RuntimeException is thrown when calling the 'consume(T task)' method.", e);
         }
     }
 
@@ -148,7 +156,9 @@ public abstract class AbstractQueuedConsumer<T> implements Consumer<T>, Runnable
                 }
             }
         } catch (InterruptedException e) {
-            //exit...
+            if (log != null) {
+                log.error("The thread was interrupted when the task was fetched, exiting...");
+            }
         }
         if (future != null && !future.isDone()) {
             future.complete(null);

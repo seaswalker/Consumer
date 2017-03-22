@@ -1,17 +1,14 @@
-package logic;
+package test;
 
 import consumer.Consumer;
 import consumer.cas.strategy.BlockStrategy;
-import manager.AbstractLockedManager;
-import manager.Manager;
+import consumer.manager.AbstractLockedManager;
+import consumer.manager.Manager;
 import org.junit.Assert;
 import org.junit.Test;
-import pool.DefaultConsumerPool;
+import consumer.pool.DefaultConsumerPool;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**

@@ -3,8 +3,8 @@ package consumer.cas;
 import consumer.AbstractQueuedConsumer;
 import consumer.cas.strategy.BlockStrategy;
 import consumer.cas.strategy.RetryStrategy;
-import queue.SQueue;
-import queue.cas.SpscBasedQueue;
+import consumer.queue.SQueue;
+import consumer.queue.cas.SpscBasedQueue;
 
 /**
  * {@link AbstractQueuedConsumer}骨架实现，基于CAS操作的消费者实现.

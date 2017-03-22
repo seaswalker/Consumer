@@ -1,6 +1,6 @@
 package consumer.cas.strategy;
 
-import queue.SQueue;
+import consumer.queue.SQueue;
 
 /**
  * {@link RetryStrategy}实现，可指定一个自旋次数，如果自旋后仍不能成功获取任务，那么将会阻塞.

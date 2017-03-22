@@ -1,4 +1,4 @@
-package lifecycle;
+package consumer.lifecycle;
 
 import java.util.concurrent.Future;
 

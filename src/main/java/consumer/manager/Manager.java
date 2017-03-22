@@ -1,6 +1,6 @@
-package manager;
+package consumer.manager;
 
-import lifecycle.LifeCycle;
+import consumer.lifecycle.LifeCycle;
 
 import java.util.concurrent.Future;
 

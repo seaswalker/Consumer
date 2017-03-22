@@ -1,7 +1,7 @@
-package manager;
+package consumer.manager;
 
-import lifecycle.LifeCycle;
-import lifecycle.StateCheckDelegate;
+import consumer.lifecycle.LifeCycle;
+import consumer.lifecycle.StateCheckDelegate;
 
 import java.util.ArrayList;
 import java.util.List;

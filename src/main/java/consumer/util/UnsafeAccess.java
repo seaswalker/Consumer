@@ -1,4 +1,4 @@
-package util;
+package consumer.util;
 
 import sun.misc.Unsafe;
 

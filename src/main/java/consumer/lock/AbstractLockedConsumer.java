@@ -2,8 +2,8 @@ package consumer.lock;
 
 import consumer.AbstractQueuedConsumer;
 import consumer.Consumer;
-import queue.locked.ArrayQueue;
-import queue.SQueue;
+import consumer.queue.locked.ArrayQueue;
+import consumer.queue.SQueue;
 
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;

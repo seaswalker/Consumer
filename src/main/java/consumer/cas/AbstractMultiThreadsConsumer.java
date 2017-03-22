@@ -1,8 +1,8 @@
 package consumer.cas;
 
 import consumer.MultiThreadsConsumer;
-import queue.SQueue;
-import queue.cas.MpmcBasedQueue;
+import consumer.queue.SQueue;
+import consumer.queue.cas.MpmcBasedQueue;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;

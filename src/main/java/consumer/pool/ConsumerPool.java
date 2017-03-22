@@ -1,8 +1,8 @@
-package pool;
+package consumer.pool;
 
 import consumer.Consumer;
 import consumer.MultiThreadsConsumer;
-import lifecycle.LifeCycle;
+import consumer.lifecycle.LifeCycle;
 
 /**
  * 消费者池，一个池中包含下列元素:

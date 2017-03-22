@@ -1,22 +1,22 @@
-package queue.cas;
+package consumer.queue.cas;
 
-import org.jctools.queues.SpscArrayQueue;
-import queue.SQueue;
+import org.jctools.queues.MpmcArrayQueue;
+import consumer.queue.SQueue;
 
 /**
- * {@link queue.SQueue}无锁实现，将逻辑委托给{@link org.jctools.queues.SpscArrayQueue}.
+ * {@link SQueue}无锁实现，将逻辑委托给{@link org.jctools.queues.MpmcArrayQueue}.
  *
  * @author skywalker
  */
-public class SpscBasedQueue<T> implements SQueue<T> {
+public class MpmcBasedQueue<T> implements SQueue<T> {
 
-    private final SpscArrayQueue<T> queue;
+    private final MpmcArrayQueue<T> queue;
 
-    public SpscBasedQueue(int capacity) {
+    public MpmcBasedQueue(int capacity) {
         if (capacity < 1) {
             throw new IllegalArgumentException("The param capacity must be positive.");
         }
-        this.queue = new SpscArrayQueue<T>(capacity);
+        this.queue = new MpmcArrayQueue<T>(capacity);
     }
 
     @Override

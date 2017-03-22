@@ -1,11 +1,13 @@
-package pool;
+package consumer.pool;
 
 import consumer.Consumer;
 import consumer.MultiThreadsConsumer;
 import consumer.cas.AbstractCASConsumer;
 import consumer.cas.AbstractMultiThreadsConsumer;
 import consumer.cas.strategy.RetryStrategy;
-import lifecycle.StateCheckDelegate;
+import consumer.lifecycle.StateCheckDelegate;
+import org.slf4j.Logger;
+import consumer.util.Util;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -42,6 +44,7 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
      * 消费者总数.
      */
     private final int consumers;
+    private final Logger log = Util.getLogger(this.getClass());
 
     private RetryStrategy<T> retryStrategy;
     private ThreadNameGenerator threadNameGenerator;
@@ -113,7 +116,7 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
     }
 
     /**
-     * termintae()和termintaeNow()辅助方法.
+     * terminate()和terminateNow()辅助方法.
      *
      * @param function {@link Function}
      */
@@ -128,8 +131,16 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
             for (int i = 0; i < this.consumers; i++) {
                 try {
                     futures[i].get();
-                } catch (InterruptedException | ExecutionException e) {
-                    //ignore
+                } catch (InterruptedException e) {
+                    if (log != null) {
+                        log.error("{} was interrupted when waiting for consumer termination, and we will ignore it " +
+                                        "continues to wait for the next.", defaultTerminateThreadName);
+                    }
+                } catch (ExecutionException e) {
+                    if (log != null) {
+                        log.error("When the consumer termination error occurred, and we will ignore it " +
+                                "continues to wait for the next.", defaultTerminateThreadName, e);
+                    }
                 }
             }
             future.complete(null);
@@ -147,6 +158,9 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
         delegate.checkRunning(this);
         Consumer result = acquireSPSC();
         if (result == null) {
+            if (log != null && log.isDebugEnabled()) {
+                log.debug("Currently there are no spsc consumer available, so use mpmc instead.");
+            }
             result = acquireMPMC();
         }
         return result;
@@ -223,6 +237,9 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
         return threadNameGenerator;
     }
 
+    /**
+     * {@link AbstractCASConsumer}实现，将其consume方法委托给{@link ConsumeAction#consume(Object)}.
+     */
     private class InternalSPSCConsumer extends AbstractCASConsumer<T> {
 
         private ConsumerWrapper wrapper;
@@ -243,6 +260,9 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
 
     }
 
+    /**
+     * {@link AbstractMultiThreadsConsumer}实现，将其consume方法委托给{@link ConsumeAction#consume(Object)}.
+     */
     private class InternalMPMCConsumer extends AbstractMultiThreadsConsumer<T> {
 
         public InternalMPMCConsumer(int queueSize, int threads) {
@@ -264,7 +284,7 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
     /**
      * 对{@link Consumer}进行包装，增加是否可用的标志位.
      */
-    private class ConsumerWrapper {
+    private class ConsumerWrapper<T> {
 
         private boolean available = true;
         private final Consumer<T> consumer;

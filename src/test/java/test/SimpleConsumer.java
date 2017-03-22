@@ -1,4 +1,4 @@
-package logic;
+package test;
 
 import consumer.lock.AbstractLockedConsumer;
 

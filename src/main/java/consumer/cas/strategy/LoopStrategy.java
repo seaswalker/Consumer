@@ -1,6 +1,6 @@
 package consumer.cas.strategy;
 
-import queue.SQueue;
+import consumer.queue.SQueue;
 
 /**
  * {@link RetryStrategy}实现，如果获取新的任务失败，那么将会不断的重试.

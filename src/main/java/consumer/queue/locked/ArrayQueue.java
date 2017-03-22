@@ -1,6 +1,6 @@
-package queue.locked;
+package consumer.queue.locked;
 
-import queue.SQueue;
+import consumer.queue.SQueue;
 
 /**
  * 用数组实现的队列，非线程安全.

@@ -1,11 +1,11 @@
-package queue.cas;
+package consumer.queue.cas;
 
-import queue.SQueue;
+import consumer.queue.SQueue;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
-import static util.UnsafeAccess.UNSAFE;
+import static consumer.util.UnsafeAccess.UNSAFE;
 
 /**
  * {@link SQueue}实现，基于CAS无锁操作.用于测试目的.

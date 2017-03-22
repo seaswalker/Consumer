@@ -1,4 +1,4 @@
-package queue;
+package consumer.queue;
 
 /**
  * 队列接口.

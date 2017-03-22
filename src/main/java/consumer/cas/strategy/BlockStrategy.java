@@ -1,6 +1,6 @@
 package consumer.cas.strategy;
 
-import queue.SQueue;
+import consumer.queue.SQueue;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;

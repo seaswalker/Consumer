@@ -1,6 +1,6 @@
 package consumer.cas.strategy;
 
-import queue.SQueue;
+import consumer.queue.SQueue;
 
 /**
  * 当{@link consumer.cas.AbstractCASConsumer}获取任务失败时采取的重试策略.
@@ -12,7 +12,7 @@ public interface RetryStrategy<T> {
     /**
      * 重试.
      *
-     * @param queue {@link queue.cas.CASQueue}.
+     * @param queue {@link consumer.queue.cas.CASQueue}.
      * @throws InterruptedException 如果线程在睡眠等待时被中断
      */
     T retry(SQueue<T> queue) throws InterruptedException;

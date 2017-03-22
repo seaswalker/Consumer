@@ -1,7 +1,7 @@
-package lifecycle;
+package consumer.lifecycle;
 
 /**
- * 检查{@link lifecycle.LifeCycle.State}，其它类的检查可委托给此类实现.
+ * 检查{@link consumer.lifecycle.LifeCycle.State}，其它类的检查可委托给此类实现.
  *
  * @author skywalker
  */
