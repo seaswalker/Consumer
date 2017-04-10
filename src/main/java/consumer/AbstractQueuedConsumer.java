@@ -157,7 +157,7 @@ public abstract class AbstractQueuedConsumer<T> implements Consumer<T>, Runnable
             }
         } catch (InterruptedException e) {
             if (log != null) {
-                log.error("The thread was interrupted when the task was fetched, exiting...");
+                log.error("The thread was interrupted when the task was fetched, exiting...", e);
             }
         }
         if (future != null && !future.isDone()) {

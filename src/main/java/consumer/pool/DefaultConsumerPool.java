@@ -134,7 +134,7 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
                 } catch (InterruptedException e) {
                     if (log != null) {
                         log.error("{} was interrupted when waiting for consumer termination, and we will ignore it " +
-                                        "continues to wait for the next.", defaultTerminateThreadName);
+                                        "continues to wait for the next.", defaultTerminateThreadName, e);
                     }
                 } catch (ExecutionException e) {
                     if (log != null) {
