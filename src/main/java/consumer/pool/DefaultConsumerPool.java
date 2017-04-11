@@ -5,6 +5,7 @@ import consumer.MultiThreadsConsumer;
 import consumer.cas.AbstractCASConsumer;
 import consumer.cas.AbstractMultiThreadsConsumer;
 import consumer.cas.strategy.RetryStrategy;
+import consumer.lifecycle.LifeCycle;
 import consumer.lifecycle.StateCheckDelegate;
 import org.slf4j.Logger;
 import consumer.util.Util;
@@ -58,6 +59,7 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
     private static final String defaultTerminateThreadName = "DefaultConsumerPool-terminate-thread";
 
     public DefaultConsumerPool(int spsc, int mpmcThreads, int spscQueueSize, int mpmcQueueSize, ConsumeActionFactory<T> factory) {
+        Objects.requireNonNull(factory);
         this.spsc = spsc;
         this.mpmcThreads = mpmcThreads;
         this.factory = factory;
@@ -76,7 +78,7 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
             if (!spsc.start()) {
                 return false;
             }
-            ConsumerWrapper wrapper = new ConsumerWrapper(spsc);
+            ConsumerWrapper wrapper = new ConsumerWrapper<T>(spsc);
             spsc.wrapper = wrapper;
             list.add(wrapper);
         }
@@ -85,7 +87,7 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
         if (!mpmc.start()) {
             return false;
         }
-        list.add(new ConsumerWrapper(mpmc));
+        list.add(new ConsumerWrapper<T>(mpmc));
         this.state = State.RUNNING;
         return true;
     }
@@ -106,13 +108,13 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
     @Override
     public Future<Void> terminate() {
         delegate.checkTerminated(this);
-        return terminateHelper(t -> t.terminate());
+        return terminateHelper(LifeCycle::terminate);
     }
 
     @Override
     public Future<Void> terminateNow() {
         delegate.checkTerminated(this);
-        return terminateHelper(t -> t.terminateNow());
+        return terminateHelper(LifeCycle::terminateNow);
     }
 
     /**
@@ -156,7 +158,7 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
     @Override
     public Consumer<T> acquire() {
         delegate.checkRunning(this);
-        Consumer result = acquireSPSC();
+        Consumer<T> result = acquireSPSC();
         if (result == null) {
             if (log != null && log.isDebugEnabled()) {
                 log.debug("Currently there are no spsc consumer available, so use mpmc instead.");
@@ -246,7 +248,7 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
 
         private final ConsumeAction<T> action;
 
-        public InternalSPSCConsumer(int queueSize) {
+        InternalSPSCConsumer(int queueSize) {
             super(queueSize);
             this.action = factory.newAction();
         }
@@ -270,7 +272,7 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
 
         private final ConsumeAction<T> action;
 
-        public InternalMPMCConsumer(int queueSize, int threads) {
+        InternalMPMCConsumer(int queueSize, int threads) {
             super(queueSize, threads);
             this.action = factory.newAction();
         }
