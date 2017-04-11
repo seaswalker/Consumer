@@ -4,6 +4,8 @@ import consumer.Consumer;
 import consumer.cas.strategy.BlockStrategy;
 import consumer.manager.AbstractLockedManager;
 import consumer.manager.Manager;
+import consumer.pool.ConsumeAction;
+import consumer.pool.ConsumeActionFactory;
 import org.junit.Assert;
 import org.junit.Test;
 import consumer.pool.DefaultConsumerPool;
@@ -67,10 +69,11 @@ public class LogicTest {
     @Test
     public void pool() throws ExecutionException, InterruptedException {
         AtomicLong counter = new AtomicLong();
-        DefaultConsumerPool<String> pool = new DefaultConsumerPool<>(2, 2, 10, 20, message -> {
+        ConsumeAction<String> action = message -> {
             System.out.println(message);
             counter.incrementAndGet();
-        });
+        };
+        DefaultConsumerPool<String> pool = new DefaultConsumerPool<>(2, 2, 10, 20, () -> action);
         pool.setRetryStrategy(new BlockStrategy<>());
         Assert.assertTrue(pool.start());
         class Producter implements Runnable {

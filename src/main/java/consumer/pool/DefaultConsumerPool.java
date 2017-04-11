@@ -30,9 +30,9 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
      * MPMC消费者线程数.
      */
     private final int mpmcThreads;
-    private final ConsumeAction action;
     private final int spscQueueSize;
     private final int mpmcQueueSize;
+    private final ConsumeActionFactory<T> factory;
     /**
      * 消费者列表，采取如下的存储策略:
      * <p>最后一个消费者为MPMC，前面的全部都是SPSC.</p>
@@ -57,10 +57,10 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
      */
     private static final String defaultTerminateThreadName = "DefaultConsumerPool-terminate-thread";
 
-    public DefaultConsumerPool(int spsc, int mpmcThreads, int spscQueueSize, int mpmcQueueSize, ConsumeAction action) {
+    public DefaultConsumerPool(int spsc, int mpmcThreads, int spscQueueSize, int mpmcQueueSize, ConsumeActionFactory<T> factory) {
         this.spsc = spsc;
         this.mpmcThreads = mpmcThreads;
-        this.action = action;
+        this.factory = factory;
         this.spscQueueSize = spscQueueSize;
         this.mpmcQueueSize = mpmcQueueSize;
         this.consumers = spsc + 1;
@@ -244,8 +244,11 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
 
         private ConsumerWrapper wrapper;
 
+        private final ConsumeAction<T> action;
+
         public InternalSPSCConsumer(int queueSize) {
             super(queueSize);
+            this.action = factory.newAction();
         }
 
         @Override
@@ -265,8 +268,11 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
      */
     private class InternalMPMCConsumer extends AbstractMultiThreadsConsumer<T> {
 
+        private final ConsumeAction<T> action;
+
         public InternalMPMCConsumer(int queueSize, int threads) {
             super(queueSize, threads);
+            this.action = factory.newAction();
         }
 
         @Override

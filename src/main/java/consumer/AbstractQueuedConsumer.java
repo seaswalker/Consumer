@@ -18,16 +18,16 @@ public abstract class AbstractQueuedConsumer<T> implements Consumer<T>, Runnable
 
     protected SQueue<T> jobQueue;
     protected ExecutorService executor;
+    protected final StateCheckDelegate delegate;
+
     protected UncaughtExceptionHandler handler;
 
     protected final int queueSize;
-
     private volatile State state = State.INIT;
+
     private volatile boolean consumeLeft = false;
 
     private CompletableFuture<Void> future;
-
-    private final StateCheckDelegate delegate;
     private final Logger log = Util.getLogger(this.getClass());
     /**
      * 默认的线程工厂，将线程名设置为{@link #getThreadName(Thread)}.

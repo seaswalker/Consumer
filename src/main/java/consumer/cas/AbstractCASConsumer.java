@@ -6,6 +6,8 @@ import consumer.cas.strategy.RetryStrategy;
 import consumer.queue.SQueue;
 import consumer.queue.cas.SpscBasedQueue;
 
+import java.util.Objects;
+
 /**
  * {@link AbstractQueuedConsumer}骨架实现，基于CAS操作的消费者实现.
  * <br>
@@ -52,6 +54,8 @@ public abstract class AbstractCASConsumer<T> extends AbstractQueuedConsumer<T> {
     }
 
     public void setRetryStrategy(RetryStrategy<T> retryStrategy) {
+        Objects.requireNonNull(retryStrategy);
+        delegate.checkStart(this);
         this.retryStrategy = retryStrategy;
     }
 
