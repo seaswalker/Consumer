@@ -1,9 +1,10 @@
 package consumer.cas.strategy;
 
+import consumer.cas.AbstractSPCASConsumer;
 import consumer.queue.SQueue;
 
 /**
- * 当{@link consumer.cas.AbstractCASConsumer}获取任务失败时采取的重试策略.
+ * 当{@link AbstractSPCASConsumer}获取任务失败时采取的重试策略.
  *
  * @author skywalker
  */

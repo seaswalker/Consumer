@@ -15,7 +15,7 @@ public class SimpleConsumer extends AbstractLockedConsumer<String> {
 
     @Override
     public void consume(String task) {
-        System.out.println("Consumer: ");
+        System.out.println("Consumer: " + task);
     }
 
 }

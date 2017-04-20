@@ -5,7 +5,6 @@ import consumer.cas.strategy.BlockStrategy;
 import consumer.manager.AbstractLockedManager;
 import consumer.manager.Manager;
 import consumer.pool.ConsumeAction;
-import consumer.pool.ConsumeActionFactory;
 import org.junit.Assert;
 import org.junit.Test;
 import consumer.pool.DefaultConsumerPool;
@@ -38,25 +37,25 @@ public class LogicTest {
 
         };
         Assert.assertTrue(manager.start());
-        class Producter implements Runnable {
+        class Producer implements Runnable {
 
             final int id;
             int index = 0;
 
-            Producter(int id) {
+            private Producer(int id) {
                 this.id = id;
             }
 
             @Override
             public void run() {
                 for (int i = 0; i < 10; i++) {
-                    manager.next().submit("Producter " + id + ":" + index++);
+                    manager.next().submit("Producer " + id + ":" + index++);
                 }
             }
         }
         ExecutorService service = Executors.newFixedThreadPool(2);
-        service.execute(new Producter(0));
-        service.execute(new Producter(1));
+        service.execute(new Producer(0));
+        service.execute(new Producer(1));
         service.shutdown();
         Future<Void> future = manager.terminate();
         future.get();
@@ -73,33 +72,33 @@ public class LogicTest {
             System.out.println(message);
             counter.incrementAndGet();
         };
-        DefaultConsumerPool<String> pool = new DefaultConsumerPool<>(2, 2, 10, 20, () -> action);
+        DefaultConsumerPool<String> pool = new DefaultConsumerPool<>(2, 1, 2, 10, 20, () -> action);
         pool.setRetryStrategy(new BlockStrategy<>());
         Assert.assertTrue(pool.start());
-        class Producter implements Runnable {
+        class Producer implements Runnable {
             final int id;
             final Consumer<String> consumer;
             int index = 0;
 
-            Producter(int id, Consumer<String> consumer) {
+            Producer(int id, Consumer<String> consumer) {
                 this.id = id;
                 this.consumer = consumer;
             }
 
             @Override
             public void run() {
-                for (int i = 0; i < 10; i++) {
-                    if (!consumer.submit("Producter " + id + ":" + index++)) {
-                        System.out.println("丢了");
+                try {
+                    for (int i = 0; i < 10; i++) {
+                        consumer.submitSync("Producer " + id + ":" + index++);
                     }
-                }
+                } catch (InterruptedException e) {}
             }
         }
         ExecutorService service = Executors.newFixedThreadPool(2);
-        service.execute(new Producter(0, pool.acquire()));
-        service.execute(new Producter(1, pool.acquire()));
-        service.execute(new Producter(2, pool.acquire()));
-        service.execute(new Producter(3, pool.acquire()));
+        service.execute(new Producer(0, pool.acquire()));
+        service.execute(new Producer(1, pool.acquire()));
+        service.execute(new Producer(2, pool.acquire()));
+        service.execute(new Producer(3, pool.acquire()));
         Thread.sleep(2000);
         service.shutdown();
         Future<Void> future = pool.terminate();

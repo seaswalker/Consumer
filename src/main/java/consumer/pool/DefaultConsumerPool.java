@@ -2,8 +2,8 @@ package consumer.pool;
 
 import consumer.Consumer;
 import consumer.MultiThreadsConsumer;
-import consumer.cas.AbstractCASConsumer;
-import consumer.cas.AbstractMultiThreadsConsumer;
+import consumer.cas.AbstractSPCASConsumer;
+import consumer.cas.AbstractMPCASConsumer;
 import consumer.cas.strategy.RetryStrategy;
 import consumer.lifecycle.LifeCycle;
 import consumer.lifecycle.StateCheckDelegate;
@@ -24,19 +24,25 @@ import java.util.function.Function;
 public class DefaultConsumerPool<T> implements ConsumerPool<T> {
 
     /**
-     * SPSC消费者数量.
+     * 每个单生产者队列消费线程数量.
      */
-    private final int spsc;
+    private final int spThreads;
     /**
-     * MPMC消费者线程数.
+     * 单生产者队列大小.
      */
-    private final int mpmcThreads;
-    private final int spscQueueSize;
-    private final int mpmcQueueSize;
+    private final int spQueueSize;
+    /**
+     * 多生产者消费线程数.
+     */
+    private final int mpThreads;
+    /**
+     * 多生产者队列大小.
+     */
+    private final int mpQueueSize;
     private final ConsumeActionFactory<T> factory;
     /**
      * 消费者列表，采取如下的存储策略:
-     * <p>最后一个消费者为MPMC，前面的全部都是SPSC.</p>
+     * <p>最后一个为多生产者模型，前面的为但生产者模型.</p>
      */
     private final List<ConsumerWrapper> list;
     private final StateCheckDelegate delegate = StateCheckDelegate.getInstance();
@@ -58,14 +64,14 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
      */
     private static final String defaultTerminateThreadName = "DefaultConsumerPool-terminate-thread";
 
-    public DefaultConsumerPool(int spsc, int mpmcThreads, int spscQueueSize, int mpmcQueueSize, ConsumeActionFactory<T> factory) {
+    public DefaultConsumerPool(int sp, int spThreads, int mpThreads, int spQueueSize, int mpQueueSize, ConsumeActionFactory<T> factory) {
         Objects.requireNonNull(factory);
-        this.spsc = spsc;
-        this.mpmcThreads = mpmcThreads;
+        this.mpThreads = mpThreads;
+        this.spThreads = spThreads;
         this.factory = factory;
-        this.spscQueueSize = spscQueueSize;
-        this.mpmcQueueSize = mpmcQueueSize;
-        this.consumers = spsc + 1;
+        this.spQueueSize = spQueueSize;
+        this.mpQueueSize = mpQueueSize;
+        this.consumers = sp + 1;
         this.list = new ArrayList<>(this.consumers);
     }
 
@@ -73,30 +79,30 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
     public boolean start() {
         delegate.checkStart(this);
         for (int i = 0; i < consumers - 1; i++) {
-            InternalSPSCConsumer spsc = new InternalSPSCConsumer(spscQueueSize);
-            prepareConsumer(spsc);
-            if (!spsc.start()) {
+            InternalSPConsumer spConsumer = new InternalSPConsumer(spQueueSize, spThreads);
+            prepareConsumer(spConsumer);
+            if (!spConsumer.start()) {
                 return false;
             }
-            ConsumerWrapper wrapper = new ConsumerWrapper<T>(spsc);
-            spsc.wrapper = wrapper;
+            ConsumerWrapper wrapper = new ConsumerWrapper(spConsumer);
+            spConsumer.wrapper = wrapper;
             list.add(wrapper);
         }
-        AbstractMultiThreadsConsumer<T> mpmc = new InternalMPMCConsumer(mpmcQueueSize, mpmcThreads);
-        prepareConsumer(mpmc);
-        if (!mpmc.start()) {
+        AbstractMPCASConsumer<T> mpConsumer = new InternalMPConsumer(mpQueueSize, mpThreads);
+        prepareConsumer(mpConsumer);
+        if (!mpConsumer.start()) {
             return false;
         }
-        list.add(new ConsumerWrapper<T>(mpmc));
+        list.add(new ConsumerWrapper(mpConsumer));
         this.state = State.RUNNING;
         return true;
     }
 
     /**
-     * 准备{@link AbstractCASConsumer}，比如调用其{@linkplain AbstractCASConsumer
+     * 准备{@link AbstractSPCASConsumer}，比如调用其{@linkplain AbstractSPCASConsumer
      * #setUncaughtExceptionHandler(Thread.UncaughtExceptionHandler)}方法.
      */
-    private void prepareConsumer(AbstractCASConsumer<T> consumer) {
+    private void prepareConsumer(AbstractSPCASConsumer<T> consumer) {
         if (retryStrategy != null) {
             consumer.setRetryStrategy(retryStrategy.copy());
         }
@@ -124,7 +130,7 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
      */
     private Future<Void> terminateHelper(Function<Consumer<T>, Future<Void>> function) {
         delegate.checkTerminated(this);
-        final Future<Void>[] futures = new Future[this.consumers];
+        final Future[] futures = new Future[this.consumers];
         for (int i = 0; i < this.consumers; i++) {
             futures[i] = function.apply(list.get(i).consumer);
         }
@@ -136,7 +142,7 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
                 } catch (InterruptedException e) {
                     if (log != null) {
                         log.error("{} was interrupted when waiting for consumer termination, and we will ignore it " +
-                                        "continues to wait for the next.", defaultTerminateThreadName, e);
+                                "continues to wait for the next.", defaultTerminateThreadName, e);
                     }
                 } catch (ExecutionException e) {
                     if (log != null) {
@@ -161,7 +167,7 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
         Consumer<T> result = acquireSPSC();
         if (result == null) {
             if (log != null && log.isDebugEnabled()) {
-                log.debug("Currently there are no spsc consumer available, so use mpmc instead.");
+                log.debug("Currently there are no sp consumer available, so use mp instead.");
             }
             result = acquireMPMC();
         }
@@ -171,7 +177,7 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
     @Override
     public Consumer<T> acquireSPSC() {
         delegate.checkRunning(this);
-        Consumer result = null;
+        Consumer<T> result = null;
         synchronized (monitor) {
             for (int i = 0; i < consumers - 1; i++) {
                 ConsumerWrapper wrapper = list.get(i);
@@ -193,16 +199,16 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
 
     @Override
     public void release(Consumer<T> consumer) {
-        if (consumer instanceof MultiThreadsConsumer) {
+        if (!(consumer instanceof MultiThreadsConsumer)) {
             //无需释放
-        } else {
             synchronized (monitor) {
-                InternalSPSCConsumer internal = (InternalSPSCConsumer) consumer;
+                InternalSPConsumer internal = (InternalSPConsumer) consumer;
                 internal.wrapper.available = true;
             }
         }
     }
 
+    @SuppressWarnings("unused")
     public RetryStrategy<T> getRetryStrategy() {
         return retryStrategy;
     }
@@ -215,6 +221,7 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
         this.retryStrategy = retryStrategy;
     }
 
+    @SuppressWarnings("unused")
     public void setThreadNameGenerator(ThreadNameGenerator threadNameGenerator) {
         if (state != State.INIT) {
             throw new IllegalStateException("Can't set ThreadNameGenerator when the state is " + state + ".");
@@ -223,10 +230,12 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
         this.threadNameGenerator = threadNameGenerator;
     }
 
+    @SuppressWarnings("unused")
     public Thread.UncaughtExceptionHandler getHandler() {
         return handler;
     }
 
+    @SuppressWarnings("unused")
     public void setHandler(Thread.UncaughtExceptionHandler handler) {
         if (state != State.INIT) {
             throw new IllegalStateException("Can't set UncaughtExceptionHandler when the state is " + state + ".");
@@ -235,21 +244,22 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
         this.handler = handler;
     }
 
+    @SuppressWarnings("unused")
     public ThreadNameGenerator getThreadNameGenerator() {
         return threadNameGenerator;
     }
 
     /**
-     * {@link AbstractCASConsumer}实现，将其consume方法委托给{@link ConsumeAction#consume(Object)}.
+     * {@link AbstractSPCASConsumer}实现，将其consume方法委托给{@link ConsumeAction#consume(Object)}.
      */
-    private class InternalSPSCConsumer extends AbstractCASConsumer<T> {
+    private class InternalSPConsumer extends AbstractSPCASConsumer<T> {
 
         private ConsumerWrapper wrapper;
 
         private final ConsumeAction<T> action;
 
-        InternalSPSCConsumer(int queueSize) {
-            super(queueSize);
+        InternalSPConsumer(int queueSize, int threads) {
+            super(queueSize, threads);
             this.action = factory.newAction();
         }
 
@@ -266,13 +276,13 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
     }
 
     /**
-     * {@link AbstractMultiThreadsConsumer}实现，将其consume方法委托给{@link ConsumeAction#consume(Object)}.
+     * {@link AbstractMPCASConsumer}实现，将其consume方法委托给{@link ConsumeAction#consume(Object)}.
      */
-    private class InternalMPMCConsumer extends AbstractMultiThreadsConsumer<T> {
+    private class InternalMPConsumer extends AbstractMPCASConsumer<T> {
 
         private final ConsumeAction<T> action;
 
-        InternalMPMCConsumer(int queueSize, int threads) {
+        InternalMPConsumer(int queueSize, int threads) {
             super(queueSize, threads);
             this.action = factory.newAction();
         }
@@ -292,12 +302,12 @@ public class DefaultConsumerPool<T> implements ConsumerPool<T> {
     /**
      * 对{@link Consumer}进行包装，增加是否可用的标志位.
      */
-    private class ConsumerWrapper<T> {
+    private class ConsumerWrapper {
 
         private boolean available = true;
         private final Consumer<T> consumer;
 
-        public ConsumerWrapper(Consumer<T> consumer) {
+        ConsumerWrapper(Consumer<T> consumer) {
             this.consumer = consumer;
         }
 
