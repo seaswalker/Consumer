@@ -72,7 +72,7 @@ public class LogicTest {
             System.out.println(message);
             counter.incrementAndGet();
         };
-        DefaultConsumerPool<String> pool = new DefaultConsumerPool<>(2, 1, 2, 10, 20, () -> action);
+        DefaultConsumerPool<String> pool = new DefaultConsumerPool<>(false, 3, 2, 64, () -> action);
         pool.setRetryStrategy(new BlockStrategy<>());
         Assert.assertTrue(pool.start());
         class Producer implements Runnable {
